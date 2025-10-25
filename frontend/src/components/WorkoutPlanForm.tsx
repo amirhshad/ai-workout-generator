@@ -1,7 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/providers/AuthProvider';
+import { useRouter } from 'next/navigation';
 import WorkoutPlanDisplay from './WorkoutPlanDisplay';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 interface WorkoutPlanFormData {
   fitnessLevel: string;
@@ -39,6 +43,8 @@ const availableEquipment = [
 const MAX_PERSONAL_INFO_LENGTH = 1000;
 
 export default function WorkoutPlanForm() {
+  const { user, getToken } = useAuth();
+  const router = useRouter();
   const [formData, setFormData] = useState<WorkoutPlanFormData>({
     fitnessLevel: '',
     goals: [],
@@ -50,6 +56,7 @@ export default function WorkoutPlanForm() {
   const [loading, setLoading] = useState(false);
   const [workoutPlan, setWorkoutPlan] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [workoutId, setWorkoutId] = useState<string | null>(null);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -81,34 +88,88 @@ export default function WorkoutPlanForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setApiError(null);
-    
+
+    // Check if user is logged in
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
 
     setLoading(true);
-    
+
     try {
-      const response = await fetch('/api/generate-workout', {
+      const token = getToken();
+
+      // Call backend API to generate and save workout
+      const response = await fetch(`${API_URL}/api/claude/generate-workout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          preferences: {
+            fitnessLevel: formData.fitnessLevel,
+            goals: formData.goals,
+            equipment: formData.equipment,
+            timeAvailable: formData.timeAvailable,
+            personalInfo: formData.personalInfo,
+          },
+          includeRecentWorkouts: true,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate workout plan');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate workout plan');
       }
 
       const data = await response.json();
-      setWorkoutPlan(data.workoutPlan);
-    } catch (error) {
+
+      // The backend returns the saved workout object
+      setWorkoutId(data._id);
+
+      // Format workout for display (construct from the workout object)
+      const displayPlan = formatWorkoutForDisplay(data);
+      setWorkoutPlan(displayPlan);
+    } catch (error: any) {
       console.error('Error generating workout plan:', error);
-      setApiError('Failed to generate workout plan. Please try again.');
+      setApiError(error.message || 'Failed to generate workout plan. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatWorkoutForDisplay = (workout: any): string => {
+    let display = `# ${workout.name}\n\n`;
+    display += `**Type:** ${workout.type}\n\n`;
+
+    if (workout.description) {
+      display += `**Description:** ${workout.description}\n\n`;
+    }
+
+    display += `## Exercises\n\n`;
+
+    workout.exercises.forEach((exercise: any, index: number) => {
+      display += `### ${index + 1}. ${exercise.name}\n`;
+      if (exercise.sets) display += `- Sets: ${exercise.sets}\n`;
+      if (exercise.reps) display += `- Reps: ${exercise.reps}\n`;
+      if (exercise.weight) display += `- Weight: ${exercise.weight} lbs\n`;
+      if (exercise.duration) display += `- Duration: ${exercise.duration} min\n`;
+      if (exercise.restPeriod) display += `- Rest: ${exercise.restPeriod}s\n`;
+      if (exercise.notes) display += `- Notes: ${exercise.notes}\n`;
+      display += `\n`;
+    });
+
+    if (workout.notes) {
+      display += `## Additional Notes\n\n${workout.notes}\n`;
+    }
+
+    return display;
   };
 
   const handleGoalToggle = (goal: string) => {
@@ -152,7 +213,11 @@ export default function WorkoutPlanForm() {
     return (
       <WorkoutPlanDisplay
         workoutPlan={workoutPlan}
-        onBack={() => setWorkoutPlan(null)}
+        onBack={() => {
+          setWorkoutPlan(null);
+          setWorkoutId(null);
+        }}
+        workoutId={workoutId || undefined}
       />
     );
   }
