@@ -1,13 +1,25 @@
 'use client';
 
+import Link from 'next/link';
+
 interface WorkoutPlanDisplayProps {
   workoutPlan: string;
   onBack: () => void;
+  workoutId?: string;
 }
 
-export default function WorkoutPlanDisplay({ workoutPlan, onBack }: WorkoutPlanDisplayProps) {
+export default function WorkoutPlanDisplay({ workoutPlan, onBack, workoutId }: WorkoutPlanDisplayProps) {
   return (
     <div className="max-w-4xl mx-auto p-6">
+      <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="flex items-center">
+          <svg className="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <span className="text-green-800 font-medium">Workout saved successfully!</span>
+        </div>
+      </div>
+
       <button
         onClick={onBack}
         className="mb-6 flex items-center text-blue-600 hover:text-blue-800"
@@ -39,19 +51,37 @@ export default function WorkoutPlanDisplay({ workoutPlan, onBack }: WorkoutPlanD
         </div>
       </div>
 
-      <div className="mt-8 flex justify-between">
-        <button
-          onClick={() => window.print()}
-          className="bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700 transition-colors"
-        >
-          Print Plan
-        </button>
-        <button
-          onClick={onBack}
-          className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors"
-        >
-          Generate Another Plan
-        </button>
+      <div className="mt-8 flex flex-wrap gap-4 justify-between">
+        <div className="flex gap-4">
+          <button
+            onClick={() => window.print()}
+            className="bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700 transition-colors"
+          >
+            Print Plan
+          </button>
+          {workoutId && (
+            <Link
+              href={`/workouts/${workoutId}`}
+              className="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 transition-colors inline-block"
+            >
+              View Full Details
+            </Link>
+          )}
+        </div>
+        <div className="flex gap-4">
+          <Link
+            href="/dashboard"
+            className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors inline-block"
+          >
+            Go to Dashboard
+          </Link>
+          <button
+            onClick={onBack}
+            className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors"
+          >
+            Generate Another Plan
+          </button>
+        </div>
       </div>
     </div>
   );
